@@ -10,11 +10,14 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -26,6 +29,15 @@ SECRET_KEY = 'django-insecure-$+vyzaf0bvo2wpjzjs)scvhf@ep(v2#^*ey2!ih(8q4r-7p6x4
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+CORS_ALLOW_ALL_ORIGINS = True 
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://*",  # Allow all origins
+    "http://localhost:8100",  # Ionic dev server
+    "http://192.168.1.3:8100",  # Your local IP
+    "http://10.0.2.2:8100",  # Android emulator dev server
+    "http://10.0.2.2",  # Android emulator dev server
+]
 
 
 # Application definition
