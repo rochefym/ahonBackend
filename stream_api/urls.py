@@ -26,6 +26,8 @@ urlpatterns = [
     path('detection-stream/', views.DetectionStreamView.as_view(), name='detection-stream'),
     path('test-stream/', views.TestDetectionStreamView.as_view(), name='test-stream'),
 
+    path('image/', views.SimpleImageView.as_view(), name='simple-image'),
+
     # Mission URLs
     path('missions/', views.MissionList.as_view()),
     path('mission/<int:pk>/', views.MissionDetail.as_view()),

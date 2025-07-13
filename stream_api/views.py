@@ -21,74 +21,44 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from stream_api.models import AhonUser, Detection, Mission, PersonDetectionModel, SARTeam, Victim
+from stream_api.models import Detection, Mission, PersonDetectionModel, Victim
 from stream_api.serializers import DetectionSerializer, MissionSerializer, VictimSerializer
-
 
 
 # Load the model once
 detection_model = YOLO("best.pt")
-# detection_model.conf = 0.75  # Set confidence threshold (0.0 to 1.0)
-# detection_model.iou = 0.5  # Optional: Set IoU threshold for NMS
-# detection_model.max_det = 300  # Optional: Set maximum detections per image
 
-class DetectionStreamView(APIView):
+class SimpleImageView(APIView):
     """
-    API View that streams fine-tuned YOLOv8 detection frames in multipart format
+    API View to serve the current image.jpg file directly
     """
-
-    def get_detection_generator(self):
-        """Generator that yields YOLO-annotated frames at ~10 fps"""
-        while True:
-            try:
-                if os.path.exists("image.jpg"):
-                    image = cv2.imread("image.jpg")
-                else:
-                    raise FileNotFoundError("image.jpg not found")
-
-                # results = detection_model(image, conf=0.5, iou=0.75)
-                results = detection_model(image, conf=0.5)
-                annotated_frame = results[0].plot()
-
-                ret, jpeg = cv2.imencode('.jpg', annotated_frame)
-                if not ret:
-                    raise Exception("Failed to encode image")
-
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
-
-                time.sleep(0.1)  # ~10 FPS
-
-            except Exception as e:
-                print(f"Error streaming image: {e}")
-                # Fallback to placeholder image
-                try:
-                    with open("placeholder.jpg", "rb") as f:
-                        image_bytes = f.read()
-
-                    image = Image.open(BytesIO(image_bytes))
-                    img_io = BytesIO()
-                    image.save(img_io, 'JPEG')
-                    img_io.seek(0)
-                    img_bytes = img_io.read()
-
-                    yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + img_bytes + b'\r\n')
-                except Exception as fallback_error:
-                    print(f"Fallback image error: {fallback_error}")
-                    # Yield empty frame if both images fail
-                    yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + b'\r\n')
-                time.sleep(0.1)
-
     def get(self, request):
-        return StreamingHttpResponse(
-            self.get_detection_generator(),
-            content_type='multipart/x-mixed-replace; boundary=frame'
-        )
-    
-
-
+        try:
+            # Check if image exists
+            if not os.path.exists("image.jpg"):
+                return Response(
+                    {"error": "Image not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Determine content type
+            content_type, _ = mimetypes.guess_type("image.jpg")
+            if content_type is None:
+                content_type = 'image/jpeg'
+            
+            # Read and return the image
+            with open("image.jpg", 'rb') as f:
+                image_data = f.read()
+            
+            response = HttpResponse(image_data, content_type=content_type)
+            response['Content-Disposition'] = 'inline; filename="image.jpg"'
+            return response
+            
+        except Exception as e:
+            return Response(
+                {"error": f"An error occurred: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 
@@ -147,8 +117,6 @@ class TestDetectionStreamView(APIView):
             content_type='multipart/x-mixed-replace; boundary=frame'
         )
     
-
-
 
 
 
@@ -276,7 +244,7 @@ class ImageStatusView(APIView):
 
 
 
-# MISSION CRUD
+#====== MISSION VIEWS ========================================================================================================
 class MissionList(APIView):
     """
     List all missions, or create a new mission.
@@ -286,41 +254,21 @@ class MissionList(APIView):
         serializer = MissionSerializer(mission, many=True)
         return Response(serializer.data)
 
-    # def post(self, request, format=None):
-    #     serializer = MissionSerializer(data=request.data)
-        
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
     def post(self, request, format=None):
         try:
             #1. Extract data
-            sar_team_member_id = request.data.get('sar_team_member_id')
-            sar_team_id = request.data.get('sar_team_id')
             date_time_started = request.data.get('date_time_started', datetime.datetime.now())
             date_time_ended = request.data.get('date_time_ended', None)
 
-            #2. Get foreign key objects
-            sar_team_member = AhonUser.objects.get(id=sar_team_member_id)
-            sar_team = SARTeam.objects.get(id=sar_team_id)
-
-            #3. Create the Mission manually
+            #2. Create the Mission Object manually
             mission = Mission.objects.create(
-                sar_team=sar_team,
-                sar_team_member=sar_team_member,
                 date_time_started=date_time_started,
                 date_time_ended=date_time_ended
             )
 
-            #4. Serialize the created Mission Object
+            #3. Serialize the created Mission Object
             mission_serializer = MissionSerializer(mission)
             return Response(mission_serializer.data, status=status.HTTP_201_CREATED)
-        except AhonUser.DoesNotExist:
-            return Response({"error": "SAR team member not found"}, status=status.HTTP_400_BAD_REQUEST)
-        except SARTeam.DoesNotExist:
-            return Response({"error": "SAR team not found"}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -365,13 +313,12 @@ class MissionDetail(APIView):
     
 
 
-#========== DETECTION CRUD=======================================================================================================
+#========== DETECTION VIEWS ====================================================================================================
 class DetectionList(APIView):
     def get(self, request, format=None):
         detection = Detection.objects.all()
         serializer = DetectionSerializer(detection, many=True)
         return Response(serializer.data)
-    
 
 class CaptureDetectionView(APIView):
     """
