@@ -23,7 +23,7 @@ class Detection(models.Model):
     longitude = models.FloatField(default=0.0)
     timestamp = models.DateTimeField(auto_now_add=True)
     is_live = models.BooleanField(default=False)
-    snapshot = models.ImageField(blank=True, null=True)
+    snapshot = models.ImageField(upload_to = "snapshots/", blank=True, null=True)
 
     def __str__(self):
         return f"Detection ID: {self.id} for Mission ID: {self.mission.id}"
@@ -35,8 +35,8 @@ class Victim(models.Model):
     person_recognition_confidence = models.FloatField()
     bounding_box = models.JSONField()  # Assuming bounding box is stored as a JSON object
     coco_keypoints = models.JSONField()  # Assuming COCO keypoints are stored as a JSON object
-    movement_category = models.CharField(max_length=50, blank=True, null=True, default='unknown')
-    risk_category = models.CharField(max_length=50, blank=True, null=True, default='unknown')
+    movement_category = models.CharField(max_length=50, blank=True, null=True, default='Mobile')
+    condition = models.CharField(max_length=50, blank=True, null=True, default='Unknown')
     is_found = models.BooleanField(default=False)
     estimated_longitude = models.FloatField(blank=True, null=True, default=0.0)
     estimated_latitude = models.FloatField(blank=True, null=True, default=0.0)

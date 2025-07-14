@@ -61,8 +61,8 @@ class SimpleImageView(APIView):
             )
 
 
-
-class TestDetectionStreamView(APIView):
+#======== STREAM VIEWS ========================================================================================================
+class DetectionStreamView(APIView):
     """
     API View that streams fine-tuned YOLOv8 detection frames in multipart format
     """
@@ -336,7 +336,6 @@ class CaptureDetectionView(APIView):
             # 2. Get Mission & PersonDetectionModel objects
             mission = Mission.objects.get(id=mission_id)
             person_detection_model = PersonDetectionModel.objects.get(id=person_detection_model_id)
-
             
             # 3.1. Check if image exists
             if not os.path.exists("image.jpg"):
@@ -375,7 +374,6 @@ class CaptureDetectionView(APIView):
             image_name = f"detection_id_{detection.id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             detection.snapshot.save(image_name, ContentFile(jpeg_buffer.tobytes()), save=True)
             
-
             # 6. Process detections and create Victim objects
             victims_created = []
 
@@ -421,17 +419,9 @@ class CaptureDetectionView(APIView):
             
             # Serialize the detection for response
             detection_serializer = DetectionSerializer(detection)
-            
-            return Response({
-                'detection': detection_serializer.data,
-                'victims_count': len(victims_created),
-                'victims': victims_created,
-                'message': f'Detection captured successfully with {len(victims_created)} person(s) detected'
-            }, status=status.HTTP_201_CREATED)
-            
+            return Response(detection_serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 class DetectionImageView(APIView):
@@ -496,7 +486,8 @@ class DetectionDetail(APIView):
                 data['image_url'] = image_url
             else:
                 data['image_url'] = None
-            return Response(data)
+
+            return Response(data, status=status.HTTP_200_OK)
         except Detection.DoesNotExist:
             return Response({"error": "Detection not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -540,6 +531,7 @@ class VictimsByDetectionView(APIView):
                 {"error": f"An error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
 
 class DetectionsByMissionView(APIView):
     """
