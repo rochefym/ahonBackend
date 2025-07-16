@@ -120,6 +120,7 @@ class DetectionStreamView(APIView):
 
 
 
+
 class ImageStreamView(APIView):
     """
     API View that streams images in multipart format for live camera feed
@@ -404,7 +405,7 @@ class CaptureDetectionView(APIView):
                         bounding_box=bounding_box,
                         coco_keypoints={},  # You can add keypoint detection if needed
                         movement_category='unknown',
-                        risk_category='unknown',
+                        condition='unknown',
                         is_found=False,
                         estimated_latitude=latitude,
                         estimated_longitude=longitude
@@ -419,7 +420,7 @@ class CaptureDetectionView(APIView):
             
             # Serialize the detection for response
             detection_serializer = DetectionSerializer(detection)
-            return Response(detection_serializer.data, status=status.HTTP_201_CREATED)
+            return Response({"victims": victims_created , "data": detection_serializer.data}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({"error": f"An error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
