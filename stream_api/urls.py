@@ -48,6 +48,10 @@ urlpatterns = [
     # All victims
     path('victims/', views.AllVictimsView.as_view(), name='all-victims'),
 
+    # Image uploads victim
+     path('image-detection/', views.ImageDetectionView.as_view(), name='image-detection'),
+     path('api/detect/front/image', views.ImageDetectionView.as_view(), name='image-detect'),
+
     
 ]  
 

@@ -646,3 +646,163 @@ class AllVictimsView(APIView):
                 {"error": f"An error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+
+#======= TESTING IMAGE UPLOAD=======================================================================================================
+
+# class ImageDetectionView(APIView):
+#     def post(self, request):
+#         try:
+#             # Get uploaded image file
+#             uploaded_image = request.FILES.get('image')
+#             if not uploaded_image:
+#                 return Response({"error": "No image uploaded"}, status=400)
+            
+#             # Get other parameters
+#             mission_id = request.data.get('mission_id')
+#             person_detection_model_id = request.data.get('person_detection_model_id', 2)
+#             latitude = request.data.get('latitude', 0.0)
+#             longitude = request.data.get('longitude', 0.0)
+            
+#             # Get Mission & PersonDetectionModel objects
+#             mission = Mission.objects.get(id=mission_id)
+#             person_detection_model = PersonDetectionModel.objects.get(id=person_detection_model_id)
+            
+#             # Save temporarily
+#             import tempfile
+#             with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+#                 for chunk in uploaded_image.chunks():
+#                     tmp_file.write(chunk)
+#                 temp_image_path = tmp_file.name
+            
+#             # Load and process the image
+#             image = cv2.imread(temp_image_path)
+#             if image is None:
+#                 return Response({"error": "Failed to load uploaded image"}, status=400)
+            
+#             # Run YOLO detection
+#             results = detection_model(image, conf=0.5)
+            
+#             # Create annotated frame
+#             annotated_frame = results[0].plot()
+            
+#             # Convert to bytes for saving
+#             ret, jpeg_buffer = cv2.imencode('.jpg', annotated_frame)
+#             if not ret:
+#                 return Response({"error": "Failed to encode annotated image"}, status=500)
+            
+#             # Create Detection object
+#             detection = Detection.objects.create(
+#                 mission=mission,
+#                 person_detection_model=person_detection_model,
+#                 latitude=latitude,
+#                 longitude=longitude,
+#                 timestamp=datetime.datetime.now(),
+#                 is_live=False
+#             )
+            
+#             # Save the annotated image
+#             image_name = f"detection_id_{detection.id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+#             detection.snapshot.save(image_name, ContentFile(jpeg_buffer.tobytes()), save=True)
+            
+#             # Process detections and create Victim objects
+#             victims_created = []
+#             boxes = results[0].boxes if results[0].boxes is not None else []
+            
+#             if len(boxes) > 0:
+#                 for i, box in enumerate(boxes):
+#                     x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+#                     confidence = float(box.conf[0].cpu().numpy())
+                    
+#                     bounding_box = {
+#                         'x1': float(x1), 'y1': float(y1),
+#                         'x2': float(x2), 'y2': float(y2)
+#                     }
+                    
+#                     person_id = f"person_{detection.id}_{i+1}"
+                    
+#                     victim = Victim.objects.create(
+#                         detection=detection,
+#                         person_id=person_id,
+#                         person_recognition_confidence=confidence,
+#                         bounding_box=bounding_box,
+#                         coco_keypoints={},
+#                         movement_category='unknown',
+#                         condition='unknown',
+#                         is_found=False,
+#                         estimated_latitude=latitude,
+#                         estimated_longitude=longitude
+#                     )
+                    
+#                     victims_created.append({
+#                         'id': victim.id,
+#                         'person_id': person_id,
+#                         'confidence': confidence,
+#                         'bounding_box': bounding_box
+#                     })
+            
+#             # Clean up temp file
+#             os.unlink(temp_image_path)
+            
+#             # Serialize the detection for response
+#             detection_serializer = DetectionSerializer(detection, context={'request': request})
+            
+#             return Response({
+#                 "message": "Detection completed successfully",
+#                 "detection": detection_serializer.data,
+#                 "victims_detected": len(victims_created),
+#                 "victims": victims_created
+#             }, status=201)
+            
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
+
+class ImageDetectionView(APIView):
+    def post(self, request):
+        try:
+            uploaded_image = request.FILES.get('image')
+            if not uploaded_image:
+                return Response({"error": "No image uploaded"}, status=400)
+            mission_id = request.data.get('mission_id')
+            person_detection_model_id = request.data.get('person_detection_model_id', 2)
+            latitude = request.data.get('latitude', 0.0)
+            longitude = request.data.get('longitude', 0.0)
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+                for chunk in uploaded_image.chunks():
+                    tmp_file.write(chunk)
+                temp_image_path = tmp_file.name
+            image = cv2.imread(temp_image_path)
+            if image is None:
+                return Response({"error": "Failed to load uploaded image"}, status=400)
+            results = detection_model(image, conf=0.5)
+            boxes = results[0].boxes if results[0].boxes is not None else []
+            annotated_frame = results[0].plot()
+            ret, jpeg_buffer = cv2.imencode('.jpg', annotated_frame)
+            if not ret:
+                return Response({"error": "Failed to encode annotated image"}, status=500)
+            from django.conf import settings
+            import uuid
+            snapshots_dir = os.path.join(settings.MEDIA_ROOT, 'snapshots')
+            os.makedirs(snapshots_dir, exist_ok=True)
+            image_name = f"detected_{uuid.uuid4().hex}.jpg"
+            annotated_path = os.path.join(snapshots_dir, image_name)
+            with open(annotated_path, 'wb') as f:
+                f.write(jpeg_buffer.tobytes())
+            result_image_url = request.build_absolute_uri(
+                f"{settings.MEDIA_URL}snapshots/{image_name}"
+            )
+            os.unlink(temp_image_path)
+            # Add persons/confidence
+            persons = []
+            for i, box in enumerate(boxes):
+                confidence = float(box.conf[0].cpu().numpy()) if hasattr(box, 'conf') else 0.0
+                persons.append({'id': i + 1, 'confidence': confidence})
+            return Response({
+                "resultImageUrl": result_image_url,
+                "detectionCount": len(boxes),
+                "persons": persons
+            }, status=200)
+        except Exception as e:
+            print(f"❌ Image detection error: {str(e)}")
+            return Response({"error": str(e)}, status=500)
