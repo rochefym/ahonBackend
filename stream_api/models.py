@@ -11,6 +11,8 @@ class Mission(models.Model):
 
 class PersonDetectionModel(models.Model):
     model_type = models.CharField(max_length=150, unique=True)
+    is_selected = models.BooleanField(default=False)
+    confidence = models.FloatField(default=0.5)
 
     def __str__(self):
         return f"Model ID: {self.id} - Type: {self.model_type}"

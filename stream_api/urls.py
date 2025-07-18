@@ -20,6 +20,7 @@ from django.conf.urls.static import static
 from django.conf import settings
 
 from . import views
+from stream_api.model_views import MissionList, MissionDetail, AllVictimsView, VictimDetailView, VictimsByDetectionView ,PersonDetectionModelDetail, PersonDetectionModelList, DetectionList, CaptureDetectionView, DetectionImageView, DetectionDetail, DetectionsByMissionView
 
 urlpatterns = [
     path('stream/', views.ImageStreamView.as_view(), name='image-stream'),
@@ -29,27 +30,27 @@ urlpatterns = [
     path('image/', views.SimpleImageView.as_view(), name='simple-image'),
 
     # Mission URLs
-    path('missions/', views.MissionList.as_view()),
-    path('mission/<int:pk>/', views.MissionDetail.as_view()),
+    path('missions/', MissionList.as_view()),
+    path('mission/<int:pk>/', MissionDetail.as_view()),
 
     # Detection URLs
-    path('detections/', views.DetectionList.as_view(), name='detection_list'),
-    path('detection/<int:pk>/', views.DetectionDetail.as_view(), name='detection_detail'),
-    path('capture-detection/', views.CaptureDetectionView.as_view(), name='capture_detection'),
-    path('detection/<int:detection_id>/image/', views.DetectionImageView.as_view(), name='detection-image'),
+    path('detections/', DetectionList.as_view(), name='detection_list'),
+    path('detection/<int:pk>/', DetectionDetail.as_view(), name='detection_detail'),
+    path('capture-detection/', CaptureDetectionView.as_view(), name='capture_detection'),
+    path('detection/<int:detection_id>/image/', DetectionImageView.as_view(), name='detection-image'),
     # Detections by mission ID
-    path('mission/<int:mission_id>/detections/', views.DetectionsByMissionView.as_view(), name='detections-by-mission'),
+    path('mission/<int:mission_id>/detections/', DetectionsByMissionView.as_view(), name='detections-by-mission'),
 
     # Victim URLs
     # Victims by detection ID
-    path('detection/<int:detection_id>/victims/', views.VictimsByDetectionView.as_view(), name='victims-by-detection'),
-    # Individual victim CRUD
-    path('victim/<int:pk>/', views.VictimDetailView.as_view(), name='victim-detail'),
-    # All victims
-    path('victims/', views.AllVictimsView.as_view(), name='all-victims'),
+    path('detection/<int:detection_id>/victims/', VictimsByDetectionView.as_view(), name='victims-by-detection'),
+    path('victim/<int:pk>/', VictimDetailView.as_view(), name='victim-detail'),
+    path('victims/', AllVictimsView.as_view(), name='all-victims'),
 
-    
+    # Person Detection Model URLs
+    path('person-detection-models/', PersonDetectionModelList.as_view(), name='all-person-detection-models'),
+    path('person-detection-model/<int:pk>', PersonDetectionModelDetail.as_view(), name='person-detection-model-detail'),
 ]  
 
-urlpatterns +=   static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+urlpatterns +=  static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
