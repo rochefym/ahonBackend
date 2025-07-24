@@ -27,6 +27,9 @@ urlpatterns = [
     path('status/', views.ImageStatusView.as_view(), name='image-status'),
     path('detection-stream/', views.DetectionStreamView.as_view(), name='detection-stream'),
 
+    # Person Count URL
+    path('person-count/', views.get_person_count, name='get-person-count'),
+
     path('image/', views.SimpleImageView.as_view(), name='simple-image'),
 
     # Mission URLs

@@ -280,3 +280,56 @@ class ImageStatusView(APIView):
 
         except Exception as e:
             return Response({ 'status': 'error', 'message': str(e) }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+# ==============================================================================
+# ADD THE NEW PERSON COUNT VIEW BELOW
+# ==============================================================================
+from django.http import JsonResponse
+from django.conf import settings
+import supervision as sv
+
+# Load the general-purpose YOLOv8n model specifically for this counting task
+# This uses the yolov8n.pt model you already have in the ai_models/yolo/ directory
+try:
+    PERSON_COUNT_MODEL_PATH = os.path.join(settings.BASE_DIR, 'ai_models', 'yolo', 'yolov8n.pt')
+    person_count_model = YOLO(PERSON_COUNT_MODEL_PATH)
+except Exception as e:
+    print(f"Error loading yolov8n.pt model: {e}")
+    person_count_model = None
+
+@api_view(['GET'])
+def get_person_count(request):
+    """
+    Reads the current 'image.jpg', counts the people detected,
+    and returns the count as a JSON response.
+    """
+    if person_count_model is None:
+        return JsonResponse({"error": "Person count model could not be loaded"}, status=500)
+
+    image_path = "image.jpg"
+    if not os.path.exists(image_path):
+        # If no image is available, it's safe to say the count is 0.
+        return JsonResponse({"person_count": 0})
+
+    try:
+        # Read the image file that is being updated by your ESP32 stream
+        frame = cv2.imread(image_path)
+        if frame is None:
+            raise ValueError("Failed to read image file, it might be corrupted or empty.")
+
+        # Perform object detection
+        result = person_count_model(frame, agnostic_nms=True)[0]
+        detections = sv.Detections.from_ultralytics(result)
+
+        # Filter for persons only (class_id 0 in COCO dataset)
+        person_detections = detections[detections.class_id == 0]
+
+        # Get the final count
+        person_count = len(person_detections)
+
+        return JsonResponse({"person_count": person_count})
+
+    except Exception as e:
+        print(f"An error occurred during person counting: {str(e)}")
+        return JsonResponse({"error": "An error occurred during processing."}, status=500)
